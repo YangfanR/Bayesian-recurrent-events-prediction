@@ -1,0 +1,52 @@
+### pooled model ###
+
+model{
+
+  # recruitment
+  ### single poisson-gamma
+  # for(i in 1:n){
+  #   starttime[i] ~ dexp(lambda_acc)
+  # }
+  # lambda_acc ~ dgamma(n_exp, t_exp)
+  
+  ### poisson-gamma for different sites
+  for(i in 1:s){
+    for(j in 1:ns[i]){
+      starttime[i,j] ~ dexp(lambda_acc[i])
+      }
+    lambda_acc[i] ~ dgamma(n_exp, t_exp * s)
+  }
+
+  for(i in 1:n) {
+    for(j in 1:J[i]){
+      # time to event
+      logHaz_e[i,j] <- log(lambda_e * w[i])
+      logSurv_e[i,j] <- -lambda_e * time[i,j] * w[i]
+      phi_e[i,j] <- 100000 - delta[i,j] * logHaz_e[i,j] - logSurv_e[i,j]
+      zeros_e[i,j] ~ dpois(phi_e[i,j])
+    }
+    
+    # time to competing risk
+    logHaz_cr[i] <- log(lambda_cr * pow(w[i], alpha))
+    logSurv_cr[i] <- -lambda_cr * time_cr[i] * pow(w[i], alpha)
+    phi_cr[i] <- 100000 - D[i] * logHaz_cr[i] - logSurv_cr[i]
+    zeros_cr[i] ~ dpois(phi_cr[i])
+    
+    w[i] ~ dgamma(psi, psi)
+  }
+  
+  for(i in 1:n){
+    # time to censor
+    logHaz_c[i] <- log(lambda_c)
+    logSurv_c[i] <- -lambda_c * time_c[i]
+    phi_c[i] <- 100000 - Y[i] * logHaz_c[i] - logSurv_c[i]
+    zeros_c[i] ~ dpois(phi_c[i])
+  }
+  
+  # Prior distributions
+  lambda_e ~ dgamma(0.01, 0.01)
+  lambda_cr ~ dgamma(0.01, 0.01)
+  lambda_c ~ dgamma(0.01, 0.01)
+  psi ~ dgamma(0.01, 0.01)
+  alpha ~ dnorm(0, 0.001)
+}
